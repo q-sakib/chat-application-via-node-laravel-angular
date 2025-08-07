@@ -156,7 +156,7 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    // 'domain' => env('SESSION_DOMAIN'),
 
     /*
     |--------------------------------------------------------------------------
@@ -198,8 +198,10 @@ return [
     | Supported: "lax", "strict", "none", null
     |
     */
+    'domain' => env('SESSION_DOMAIN', null),
+    'same_site' => 'lax',
 
-    'same_site' => env('SESSION_SAME_SITE', 'lax'),
+    // 'same_site' => env('SESSION_SAME_SITE', 'lax'),
 
     /*
     |--------------------------------------------------------------------------

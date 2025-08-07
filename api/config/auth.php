@@ -35,12 +35,25 @@ return [
     |
     */
 
+    // 'guards' => [
+    //     'web' => [
+    //         'driver' => 'session',
+    //         'provider' => 'users',
+    //     ],
+    // ],
+
     'guards' => [
         'web' => [
-            'driver' => 'session',
+            'driver' => 'session',  // Used for web.php, sessions & cookies
+            'provider' => 'users',
+        ],
+
+        'api' => [
+            'driver' => 'sanctum',  // Used for token-based APIs
             'provider' => 'users',
         ],
     ],
+
 
     /*
     |--------------------------------------------------------------------------

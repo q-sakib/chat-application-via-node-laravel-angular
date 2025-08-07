@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Laravel\Sanctum\SanctumServiceProvider;
 
 return Application::configure(basePath: dirname(__DIR__))
+
     ->withProviders([
         SanctumServiceProvider::class, // ✅ Add this line
     ])
@@ -18,14 +19,22 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
     //
     $middleware->group('api', [
-        // Removed Sanctum middleware
+
+
         \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-        // 'throttle:api',
+        'throttle:api',
         \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        
+        // Removed Sanctum middleware
+        // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        // 'throttle:api',
+        // \Illuminate\Routing\Middleware\SubstituteBindings::class,
         // Optional: throttle API
         // \Illuminate\Routing\Middleware\ThrottleRequests::class,        
     ]);
-
+    $middleware->alias([
+        'auto-refresh' => \App\Http\Middleware\AutoRefreshToken::class,
+    ]);
     // $middleware->alias([
     //     'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
     //     'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,

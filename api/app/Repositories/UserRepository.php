@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class UserRepository
 {
@@ -16,20 +17,41 @@ class UserRepository
   {
     return User::where('username', $username)->first();
   }
+
   public function findByEmail(string $email): ?User
   {
     return User::where('email', $email)->first();
   }
+
   public function findForLogin(array $credentials): ?User
   {
-    if (isset($credentials['email'])) {
-      return $this->findByEmail($credentials['email']);
-    }
+    return $credentials['email'] ?? $credentials['username']
+      ? User::where('email', $credentials['email'] ?? '')
+      ->orWhere('username', $credentials['username'] ?? '')
+      ->first()
+      : null;
+  }
 
-    if (isset($credentials['username'])) {
-      return $this->findByUsername($credentials['username']);
+  public function findByValidRefreshToken(string $refreshToken): ?User
+  {
+    $users = User::whereNotNull('refresh_token')->get();
+
+    foreach ($users as $user) {
+      if (
+        Hash::check($refreshToken, $user->refresh_token) &&
+        $user->refresh_token_expires_at &&
+        $user->refresh_token_expires_at->isFuture()
+      ) {
+        return $user;
+      }
     }
 
     return null;
+  }
+
+  public function allUsers(array $data)
+  {
+    $perPage = $data['per_page'] ?? 10;
+    return User::paginate($perPage);
   }
 }

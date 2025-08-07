@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Services\Auth\AuthService;
+use App\Repositories\UserRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -20,48 +21,77 @@ use Exception;
 
 
 
+/**
+ * Class AuthController
+ * Handles user authentication including registration, login, token refresh, and logout.
+ */
+
+
+
 class AuthController extends Controller
 {
     protected AuthService $auth;
+    protected UserRepository $userRepo;
 
-    public function __construct(AuthService $auth)
+    public function __construct(AuthService $auth, UserRepository $userRepo)
     {
         $this->auth = $auth;
+        $this->userRepo = $userRepo;
     }
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        try {
-            $token = $this->auth->register($request->validated());
-            return response()->json([
-                'token' => $token,
-                'user' => Auth::user()
-            ], 201);
-        } catch (Exception $e) {
-            return response()->json(['message' => 'Registration failed.'], 500);
-        }
+        $result = $this->auth->register($request->validated());
+
+        return response()->json([
+            'user' => $result['user'],
+            'token_type' => 'Bearer',
+            'expires_in' => $result['expires_in'],
+        ], 201)->withHeaders([
+            'Authorization' => 'Bearer ' . $result['access_token'],
+            'X-Refresh-Token' => $result['refresh_token'],
+        ]);
     }
 
     public function login(LoginRequest $request): JsonResponse
     {
-        try {
-            $token = $this->auth->login($request->validated());
-            if (!$token) {
-                return response()->json(['message' => 'Invalid credentials'], 401);
-            }
+        $result = $this->auth->login($request->validated());
 
-            return response()->json([
-                'token' => $token,
-                'user' => Auth::user()
-            ]);
-        } catch (Exception $e) {
-            return response()->json(['message' => 'Login failed.'], 500);
+        if (!$result) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
         }
+
+        return response()->json([
+            'user' => $result['user'],
+            'token_type' => 'Bearer',
+            'expires_in' => $result['expires_in'],
+        ])->withHeaders([
+            'Authorization' => 'Bearer ' . $result['access_token'],
+            'X-Refresh-Token' => $result['refresh_token'],
+        ]);
     }
 
-    public function user(): JsonResponse
+    public function refresh(Request $request): JsonResponse
     {
-        return response()->json(Auth::user());
+        $refreshToken = $request->header('X-Refresh-Token');
+
+        if (!$refreshToken) {
+            return response()->json(['message' => 'Refresh token missing'], 400);
+        }
+
+        $result = $this->auth->refresh($refreshToken);
+
+        if (!$result) {
+            return response()->json(['message' => 'Invalid or expired refresh token'], 401);
+        }
+
+        return response()->json([
+            'token_type' => 'Bearer',
+            'expires_in' => $result['expires_in'],
+        ])->withHeaders([
+            'Authorization' => 'Bearer ' . $result['access_token'],
+            'X-Refresh-Token' => $result['refresh_token'],
+        ]);
     }
 
     public function logout(): JsonResponse
@@ -70,7 +100,23 @@ class AuthController extends Controller
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        Auth::user()->tokens()->delete();
-        return response()->json(['message' => 'Logged out']);
+        $this->auth->logout(Auth::user());
+
+        return response()->json(['message' => 'Logged out successfully']);
+    }
+
+    public function user(): JsonResponse
+    {
+        return response()->json(Auth::user());
+    }
+    public function allUsers(Request $request): JsonResponse
+    {
+        if (!Auth::check()) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $users = $this->userRepo->allUsers($request->all());
+
+        return response()->json($users);
     }
 }
